@@ -12,6 +12,34 @@ const (
 	winHeight int32 = 600
 )
 
+// make my own font XD
+var nums = [][]byte{
+	{1, 1, 1,
+		1, 0, 1,
+		1, 0, 1,
+		1, 0, 1,
+		1, 1, 1,
+	},
+	{0, 1, 0,
+		0, 1, 0,
+		0, 1, 0,
+		0, 1, 0,
+		0, 1, 0,
+	},
+	{1, 1, 1,
+		0, 0, 1,
+		1, 1, 1,
+		1, 0, 0,
+		1, 1, 1,
+	},
+	{1, 1, 1,
+		0, 0, 1,
+		1, 1, 1,
+		0, 0, 1,
+		1, 1, 1,
+	},
+}
+
 type color struct {
 	r, g, b byte
 }
@@ -34,6 +62,7 @@ type paddle struct {
 	w     float32
 	h     float32
 	speed float32
+	score int
 	color color
 }
 
@@ -57,6 +86,31 @@ type paddle struct {
 //which gives: paddle.x
 // with that you can use receive func (methode) from pos in paddle
 
+func lerp(a float32, b float32, pct float32) float32{
+	return a + pct*(b-a)
+}
+
+//drawNumber - draw number from aray of bytes nums
+func drawNumber(pos pos, color color, size int, num int, pixels []byte) {
+	startX := int(pos.x) - (size*3)/2
+	startY := int(pos.y) - (size*5)/2
+
+	for i, v := range nums[num] {
+		if v == 1 {
+			for y := startY; y < startY+size; y++ {
+				for x := startX; x < startX+size; x++ {
+					setPixel(x, y, color, pixels)
+				}
+			}
+		}
+		startX += size
+		if (i+1)%3 == 0 {
+			startY += size
+			startX -= size * 3
+		}
+	}
+}
+
 func (paddle *paddle) draw(pixels []byte) {
 
 	// We set from the center the starting point to drow at the left hand corner
@@ -69,6 +123,9 @@ func (paddle *paddle) draw(pixels []byte) {
 			setPixel(int(startX)+x, int(startY)+y, paddle.color, pixels)
 		}
 	}
+
+	numX := lerp(paddle.x, getCenter().x, 0.2)
+	drawNumber(pos{numX, 35}, paddle.color, 10, paddle.score, pixels)
 }
 
 func (ball *ball) draw(pixels []byte) {
@@ -96,8 +153,13 @@ func (ball *ball) update(leftPaddle *paddle, rightPaddle *paddle, elapsedTime fl
 		ball.yv = -ball.yv
 	}
 
-	if ball.x < 0 || ball.x > float32(winWidth) {
+	if ball.x < 0 {
+		rightPaddle.score++
 		ball.pos = getCenter()
+	} else if ball.x > float32(winWidth) {
+		leftPaddle.score++
+		ball.pos = getCenter()
+
 	}
 
 	if ball.x < leftPaddle.x+rightPaddle.w/2 {
@@ -182,8 +244,8 @@ func main() {
 
 	pixels := make([]byte, winWidth*winHeight*4)
 
-	player1 := paddle{pos{50, 100}, 20, 100, 300, color{255, 255, 255}}
-	player2 := paddle{pos{float32(winWidth) - 50, 100}, 20, 100, 300, color{255, 255, 255}}
+	player1 := paddle{pos{50, 100}, 20, 100, 300, 0, color{255, 255, 255}}
+	player2 := paddle{pos{float32(winWidth) - 50, 100}, 20, 100, 300, 0, color{255, 255, 255}}
 
 	ball := ball{pos{300, 300}, 20, 400, 400, color{255, 255, 255}}
 
@@ -209,6 +271,7 @@ func main() {
 		ball.update(&player1, &player2, elapsedTime)
 		player2.aiUpdate(&ball, elapsedTime)
 
+		drawNumber(getCenter(), color{255, 255, 255}, 20, 0, pixels)
 		player1.draw(pixels)
 		ball.draw(pixels)
 		player2.draw(pixels)
@@ -220,7 +283,7 @@ func main() {
 		elapsedTime = float32(time.Since(frameStart).Seconds())
 		//block framerate under 200 frames
 		if elapsedTime < .005 {
-			sdl.Delay(5 -uint32(elapsedTime/1000.0))
+			sdl.Delay(5 - uint32(elapsedTime/1000.0))
 			elapsedTime = float32(time.Since(frameStart).Seconds())
 		}
 	}
