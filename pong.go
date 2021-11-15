@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/veandco/go-sdl2/sdl"
 )
@@ -21,7 +22,7 @@ type pos struct {
 
 type ball struct {
 	pos
-	radius int
+	radius float32
 	xv     float32
 	yv     float32
 
@@ -30,8 +31,8 @@ type ball struct {
 
 type paddle struct {
 	pos
-	w     int
-	h     int
+	w     float32
+	h     float32
 	color color
 }
 
@@ -59,12 +60,12 @@ func (paddle *paddle) draw(pixels []byte) {
 
 	// We set from the center the starting point to drow at the left hand corner
 
-	startX := int(paddle.x) - paddle.w/2
-	startY := int(paddle.y) - paddle.h/2
+	startX := paddle.x - paddle.w/2
+	startY := paddle.y - paddle.h/2
 
-	for y := 0; y < paddle.h; y++ {
-		for x := 0; x < paddle.w; x++ {
-			setPixel(startX+x, startY+y, paddle.color, pixels)
+	for  y := 0; y < int(paddle.h); y++ {
+		for x := 0; x < int(paddle.w); x++ {
+			setPixel(int(startX)+x, int(startY)+y, paddle.color, pixels)
 		}
 	}
 }
@@ -74,7 +75,7 @@ func (ball *ball) draw(pixels []byte) {
 	for y := -ball.radius; y < ball.radius; y++ {
 		for x := -ball.radius; x < ball.radius; x++ {
 			if x*x+y*y < ball.radius*ball.radius {
-				setPixel(int(ball.x)+x, int(ball.y)+y, ball.color, pixels)
+				setPixel(int(ball.x+x), int(ball.y+y), ball.color, pixels)
 			}
 		}
 	}
@@ -86,7 +87,7 @@ func ( ball *ball) update(leftPaddle *paddle, rightPaddle *paddle){
 
 	// handle collision
 
-	if ball.y -float32(ball.radius) < 0 || ball.y+float32(ball.radius) > float32(winHeight){
+	if ball.y -ball.radius < 0 || ball.y+ball.radius > float32(winHeight){
 		ball.yv = -ball.yv
 	}
 
@@ -95,14 +96,14 @@ func ( ball *ball) update(leftPaddle *paddle, rightPaddle *paddle){
 		ball.y = float32(winHeight)/2
 	}
 
-	if ball.x < leftPaddle.x + float32(rightPaddle.w/2){
-		if ball.y > leftPaddle.y-float32(leftPaddle.h/2) && ball.y < leftPaddle.y+float32(leftPaddle.h/2) {
+	if ball.x < leftPaddle.x + rightPaddle.w/2{
+		if ball.y > leftPaddle.y-leftPaddle.h/2 && ball.y < leftPaddle.y+leftPaddle.h/2 {
 			ball.xv = -ball.xv
 		}
 	}
 
 	if ball.x > rightPaddle.x - float32(rightPaddle.w/2) {
-		if ball.y > rightPaddle.y-float32(rightPaddle.h/2) && ball.y < rightPaddle.y+float32(rightPaddle.h/2) {
+		if ball.y > rightPaddle.y-float32(rightPaddle.h/2) && ball.y < rightPaddle.y+rightPaddle.h/2 {
 			ball.xv = -ball.xv
 		}
 	}
@@ -185,11 +186,14 @@ func main() {
 
 	keyState := sdl.GetKeyboardState()
 
+	var frameStart time.Time
+	var elapsedTime float32
 	//Changed after EP06 to address MacOSX
 	//OSX Requires that to continu events for windows to open and work properly
 
 	// It's also be our game loop
 	for {
+		frameStart = time.Now()
 		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
 			switch event.(type) {
 			case *sdl.QuitEvent:
@@ -211,6 +215,8 @@ func main() {
 		renderer.Copy(tex, nil, nil)
 		renderer.Present()
 
-		sdl.Delay(16)
+		elapsedTime = float32(time.Since(frameStart).Seconds()) /1000.0
+		//lock the framerate
+		sdl.Delay(16 - uint32(elapsedTime))
 	}
 }
